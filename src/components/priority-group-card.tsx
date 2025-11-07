@@ -13,7 +13,7 @@ import {
   type Instruction,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
 import { createPortal } from "react-dom";
-import { isGroupDraggable, type DraggableState, type GroupDraggable } from "../types/draggable";
+import { isDocumentElement, isGroupElement, type DraggableState, type GroupElement } from "../types/draggable";
 import { getOperationAvailability } from "../util/draggable-util";
 import { DragHandle } from "./draggable/drag-handle";
 import { DragPreview } from "./draggable/drag-preview";
@@ -32,11 +32,11 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
     type: "idle",
   });
   const [instruction, setInstruction] = useState<Instruction | null>(null);
-  console.log(`Rendering PriorityGroupCard ${groupIndex} - ${state.type}`);
+  //console.log(`Rendering PriorityGroupCard ${groupIndex} - ${state.type}`);
   useEffect(() => {
     if (!ref.current || !dragHandleRef.current) return;
     const element = ref.current;
-    const data: GroupDraggable = { type: "group", index: groupIndex, id: group.id };
+    const data: GroupElement = { type: "group", index: groupIndex, id: group.id };
     return combine(
       draggable({
         element,
@@ -74,16 +74,35 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
         //   return isPriorityDragData(source.data) && source.data.id === data.id;
         // },
         getData({ input, source }) {
+          // handle group drop
+          if (isGroupElement(source.data)) {
+            return attachInstruction(data, {
+              element,
+              input,
+              operations: getOperationAvailability(source.data.index, groupIndex, groupCount - 1),
+            });
+          }
+          // handle document drop 
+          if (isDocumentElement(source.data)) {
+            console.log(`Document ${source.data.id} dragged over group ${group.id}`);
+            return attachInstruction(data, {
+              element,
+              input,
+              operations: {
+                "reorder-before": "available",
+                "reorder-after": "available",
+                combine: "available",
+              },
+            });
+          }
           return attachInstruction(data, {
             element,
             input,
-            operations: isGroupDraggable(source.data)
-              ? getOperationAvailability(source.data.index, groupIndex, groupCount - 1)
-              : {
-                  "reorder-before": "not-available",
-                  "reorder-after": "not-available",
-                  combine: "not-available",
-                },
+            operations: {
+              "reorder-before": "not-available",
+              "reorder-after": "not-available",
+              combine: "not-available",
+            },
           });
         },
         onDragEnter({ self, source }) {
@@ -126,7 +145,7 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
           {group.documents.length > 0 && (
             <div className="grid gap-2">
               {group.documents.map((doc) => (
-                <DocumentCard key={doc.id} document={doc} />
+                <DocumentCard key={doc.id} groupId={group.id} document={doc} />
               ))}
             </div>
           )}

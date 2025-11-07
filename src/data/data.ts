@@ -1,4 +1,6 @@
 import type { Group } from "../types/data";
+import type { Document } from "../types/data";
+import { v4 as uuidv4 } from "uuid";
 
 const data: Group[] = [
   {
@@ -142,4 +144,11 @@ const data: Group[] = [
 
 export function getData(): Group[] {
   return data;
+}
+
+export function createGroup(documents?: Document[]): Group {
+  return {
+    id: uuidv4(),
+    documents: documents || [],
+  } satisfies Group;
 }
