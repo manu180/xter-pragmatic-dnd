@@ -1,7 +1,11 @@
 import { useRef, useEffect, useState } from "react";
 import type { Group } from "../types/data";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import {
+  type ElementDropTargetEventBasePayload,
+  draggable,
+  dropTargetForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/list-item";
@@ -27,8 +31,7 @@ interface PriorityGroupProps {
 
 const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps) => {
   const ref = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
-  //const [isDragged, setIsDragged] = useState(false);
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<DraggableState>({
     type: "idle",
   });
@@ -37,11 +40,19 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
   useEffect(() => {
     if (!ref.current || !dragHandleRef.current) return;
     const element = ref.current;
+    const dragHandle = dragHandleRef.current;
     const data: GroupElement = { type: "group", index: groupIndex, id: group.id };
+    function onChange({ source, self }: ElementDropTargetEventBasePayload) {
+      if (self.element === source.element) {
+        return;
+      }
+      const instruction = extractInstruction(self.data);
+      setInstruction(instruction);
+    }
     return combine(
       draggable({
         element,
-        dragHandle: dragHandleRef.current,
+        dragHandle,
         getInitialData() {
           //return getTaskData(task);
           return data;
@@ -68,9 +79,7 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
       }),
       dropTargetForElements({
         element,
-        getIsSticky() {
-          return true;
-        },
+        getIsSticky: () => true,
         // canDrop({ source }) {
         //   return isPriorityDragData(source.data) && source.data.id === data.id;
         // },
@@ -106,18 +115,8 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
             },
           });
         },
-        onDragEnter({ self, source }) {
-          if (self.element !== source.element) {
-            const instruction = extractInstruction(self.data);
-            setInstruction(instruction);
-          }
-        },
-        onDrag({ self, source }) {
-          if (self.element !== source.element) {
-            const instruction = extractInstruction(self.data);
-            setInstruction(instruction);
-          }
-        },
+        onDragEnter: onChange,
+        onDrag: onChange,
         onDragLeave() {
           setInstruction(null);
         },

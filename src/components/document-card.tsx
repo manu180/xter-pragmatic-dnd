@@ -15,18 +15,17 @@ interface DocumentCardProps {
 }
 
 const DocumentCard: React.FC<DocumentCardProps> = ({ document, groupId }) => {
-  const dragRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<DraggableState>({
     type: "idle",
   });
 
   useEffect(() => {
-    if (!dragRef.current || !dragHandleRef.current) return;
+    if (!ref.current || !dragHandleRef.current) return;
     const data: DocumentElement = { type: "document", groupId, id: document.id };
     return draggable({
-      element: dragRef.current,
-      dragHandle: dragHandleRef.current,
+      element: dragHandleRef.current,
       getInitialData: () => data,
       onGenerateDragPreview({ nativeSetDragImage }) {
         setCustomNativeDragPreview({
@@ -53,7 +52,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, groupId }) => {
   return (
     <div className="relative">
       <div
-        ref={dragRef}
+        ref={ref}
         className={twMerge(
           "bg-gray-50 border border-gray-200 rounded-md p-2 transition-transform hover:shadow-md group",
           state.type === "is-dragging" && "opacity-40"
