@@ -8,8 +8,7 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
-import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/list-item";
-//import { DropIndicator } from "./draggable/drop-indicator";
+import { DropIndicator } from "./draggable/drop-indicator";
 import DocumentCard from "./document-card";
 import { twMerge } from "tailwind-merge";
 import {
