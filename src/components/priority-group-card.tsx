@@ -5,6 +5,7 @@ import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-d
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/list-item";
+//import { DropIndicator } from "./draggable/drop-indicator";
 import DocumentCard from "./document-card";
 import { twMerge } from "tailwind-merge";
 import {
@@ -82,7 +83,7 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
               operations: getOperationAvailability(source.data.index, groupIndex, groupCount - 1),
             });
           }
-          // handle document drop 
+          // handle document drop
           if (isDocumentElement(source.data)) {
             console.log(`Document ${source.data.id} dragged over group ${group.id}`);
             return attachInstruction(data, {
@@ -150,6 +151,10 @@ const PriorityGroupCard = ({ groupIndex, groupCount, group }: PriorityGroupProps
             </div>
           )}
         </div>
+        {/* <DropIndicator
+          instruction={{ operation: "combine", blocked: false, axis: "vertical" }}
+          lineGap="8px"
+        /> */}
         {instruction && <DropIndicator instruction={instruction} lineGap="8px" />}
       </div>
       {state.type === "preview" && createPortal(<DragPreview value={`${group.id}`} />, state.container)}

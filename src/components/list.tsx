@@ -112,7 +112,7 @@ function insertGroup(groups: Group[], source: DocumentElement, target: GroupElem
 
   const [document] = sourceGroup.documents.splice(sourceDocumentIndex, 1);
   const newGroup = createGroup(document ? [document] : []);
-  const res = [...groupsBefore, newGroup, ...groupsAfter];
+  const res = ([] as Group[]).concat(groupsBefore, newGroup, ...groupsAfter);
   console.log("Before:", groupsBefore, "New:", newGroup, "After:", groupsAfter);
   console.log("Inserting group after:", res);
   return res;
