@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { extractInstruction, type Instruction } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
-import { isDocumentElement, isGroupElement, type DocumentElement, type GroupElement } from "../types/draggable";
+import { extractInstruction, type Instruction } from "../util/pragmatic-drag-and-drop-hitbox/list-item";
+import { isDocumentElement, isGroupElement, type DocumentElement } from "../types/draggable";
 import { reorderWithInstruction } from "../util/draggable-util";
 import PriorityGroupCard from "./priority-group-card";
 import type { Group } from "../types/data";
@@ -13,31 +13,25 @@ export default function List({ items }: { items: Group[] }) {
   useEffect(() => {
     return monitorForElements({
       onDrop({ source, location }) {
-        console.log("Dropped", { source, location });
-
-        const target = location.current.dropTargets[0];
-        if (!target) {
+        const targetGroup = location.current.dropTargets[0]?.data;
+        if (!isGroupElement(targetGroup)) {
           return;
         }
-
-        const sourceData = source.data;
-        const targetData = target.data;
-
-        if (!isGroupElement(targetData)) {
-          return;
-        }
-        const instruction = extractInstruction(target.data);
-        if (isDocumentElement(sourceData)) {
+        const sourceElem = source.data;
+        const instruction = extractInstruction(targetGroup);
+        if (isDocumentElement(sourceElem)) {
           setGroups(
-            insertGroupOrCombineDocuments(groups, sourceData, targetData, instruction).filter(
+            insertGroupOrCombineDocuments(groups, sourceElem, targetGroup.id, instruction).filter(
               (g) => g.documents.length > 0
             )
           );
           return;
         }
 
-        if (isGroupElement(sourceData)) {
-          setGroups(reorderGroups(groups, sourceData, targetData, instruction).filter((g) => g.documents.length > 0));
+        if (isGroupElement(sourceElem)) {
+          setGroups(
+            reorderGroups(groups, sourceElem.id, targetGroup.id, instruction).filter((g) => g.documents.length > 0)
+          );
           return;
         }
       },
@@ -49,7 +43,7 @@ export default function List({ items }: { items: Group[] }) {
       <h1 className="text-4xl text-gray-800 text-center mb-8 font-bold">Agent Context Model</h1>
       <div className="flex flex-col gap-2">
         {groups.map((p, idx) => (
-          <PriorityGroupCard key={p.id} groupIndex={idx} groupCount={groups.length} group={p} />
+          <PriorityGroupCard key={p.id} isFirst={idx === 0} isLast={idx === groups.length - 1} group={p} />
         ))}
       </div>
     </div>
@@ -58,16 +52,15 @@ export default function List({ items }: { items: Group[] }) {
 
 function reorderGroups(
   groups: Group[],
-  source: GroupElement,
-  target: GroupElement,
+  sourceGroupId: Group["id"],
+  targetGroupId: Group["id"],
   instruction: Instruction | null
 ): Group[] {
-  const indexOfSource = groups.findIndex((p) => p.id === source.id);
-  const indexOfTarget = groups.findIndex((p) => p.id === target.id);
+  const indexOfSource = groups.findIndex((p) => p.id === sourceGroupId);
+  const indexOfTarget = groups.findIndex((p) => p.id === targetGroupId);
   if (indexOfTarget < 0 || indexOfSource < 0) {
     return groups;
   }
-  console.log("Instruction on drop:", instruction);
   return reorderWithInstruction({
     list: groups,
     startIndex: indexOfSource,
@@ -79,7 +72,7 @@ function reorderGroups(
 function insertGroupOrCombineDocuments(
   groups: Group[],
   source: DocumentElement,
-  target: GroupElement,
+  targetGroupId: Group["id"],
   instruction: Instruction | null
 ): Group[] {
   if (!instruction) {
@@ -87,18 +80,23 @@ function insertGroupOrCombineDocuments(
   }
   switch (instruction.operation) {
     case "combine":
-      return combineDocuments(groups, source, target);
+      return combineDocuments(groups, source, targetGroupId);
     case "reorder-before":
-      return insertGroup(groups, source, target, false);
+      return insertGroup(groups, source, targetGroupId, false);
     case "reorder-after":
-      return insertGroup(groups, source, target, true);
+      return insertGroup(groups, source, targetGroupId, true);
   }
 }
 
-function insertGroup(groups: Group[], source: DocumentElement, target: GroupElement, isGoingAfter: boolean): Group[] {
+function insertGroup(
+  groups: Group[],
+  source: DocumentElement,
+  targetGroupId: Group["id"],
+  isGoingAfter: boolean
+): Group[] {
   const sourceGroupIndex = groups.findIndex((g) => g.id === source.groupId);
   const sourceDocumentIndex = groups[sourceGroupIndex].documents.findIndex((d) => d.id === source.id);
-  const targetGroupIndex = groups.findIndex((g) => g.id === target.id);
+  const targetGroupIndex = groups.findIndex((g) => g.id === targetGroupId);
 
   const groupsBefore = isGoingAfter
     ? [...groups.slice(0, targetGroupIndex + 1)]
@@ -112,14 +110,11 @@ function insertGroup(groups: Group[], source: DocumentElement, target: GroupElem
 
   const [document] = sourceGroup.documents.splice(sourceDocumentIndex, 1);
   const newGroup = createGroup(document ? [document] : []);
-  const res = ([] as Group[]).concat(groupsBefore, newGroup, ...groupsAfter);
-  console.log("Before:", groupsBefore, "New:", newGroup, "After:", groupsAfter);
-  console.log("Inserting group after:", res);
-  return res;
+  return ([] as Group[]).concat(groupsBefore, newGroup, ...groupsAfter);
 }
 
-function combineDocuments(groups: Group[], source: DocumentElement, target: GroupElement): Group[] {
-  const indexOfTarget = groups.findIndex((p) => p.id === target.id);
+function combineDocuments(groups: Group[], source: DocumentElement, targetGroupId: Group["id"]): Group[] {
+  const indexOfTarget = groups.findIndex((p) => p.id === targetGroupId);
   const indexOfSourceGroup = groups.findIndex((g) => g.id === source.groupId);
   if (indexOfTarget < 0 || indexOfSourceGroup < 0 || indexOfSourceGroup === indexOfTarget) {
     return groups;

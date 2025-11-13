@@ -1,6 +1,5 @@
-import type { Instruction } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/list-item";
-import type { Availability } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
 import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
+import type { Availability, Instruction } from "./pragmatic-drag-and-drop-hitbox/list-item";
 
 function getReorderDestinationIndex({
   startIndex,
@@ -58,33 +57,6 @@ export function reorderWithInstruction<Value>({
   });
 }
 
-type Operations = {
+export type Operations = {
   [TKey in Instruction["operation"]]?: Availability;
 };
-
-export function getOperationAvailability(
-  dragIndex: number,
-  currentDropIndex: number,
-  lastDropIndex: number
-): Operations {
-  //console.log(`calling getOperationAvailability source:${dragIndex} drop:${currentDropIndex} lastIndex:${lastDropIndex}`);
-  if (dragIndex === lastDropIndex && dragIndex === currentDropIndex) {
-    return {
-      "reorder-before": "available",
-      "reorder-after": "not-available",
-      combine: "not-available",
-    };
-  }
-  if (dragIndex === 0 && dragIndex === currentDropIndex) {
-    return {
-      "reorder-before": "not-available",
-      "reorder-after": "available",
-      combine: "not-available",
-    };
-  }
-  return {
-    "reorder-before": "available",
-    "reorder-after": "available",
-    combine: "not-available",
-  };
-}

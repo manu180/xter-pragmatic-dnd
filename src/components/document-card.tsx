@@ -4,17 +4,19 @@ import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { DragHandle } from "./draggable/drag-handle";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
-import type { DocumentElement, DraggableState } from "../types/draggable";
+import { type DocumentElement, type DraggableState } from "../types/draggable";
 import { twMerge } from "tailwind-merge";
 import { createPortal } from "react-dom";
 import { DragPreview } from "./draggable/drag-preview";
 
 interface DocumentCardProps {
   groupId: string;
+  isFirst: boolean;
+  isLast: boolean;
   document: Document;
 }
 
-const DocumentCard: React.FC<DocumentCardProps> = ({ document, groupId }) => {
+const DocumentCard: React.FC<DocumentCardProps> = ({ document, groupId, isFirst, isLast }) => {
   const ref = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<DraggableState>({
@@ -23,9 +25,10 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, groupId }) => {
 
   useEffect(() => {
     if (!ref.current || !dragHandleRef.current) return;
-    const data: DocumentElement = { type: "document", groupId, id: document.id };
+    const dragHandle = dragHandleRef.current;
+    const data: DocumentElement = { type: "document", groupId, id: document.id, isFirst, isLast };
     return draggable({
-      element: dragHandleRef.current,
+      element: dragHandle,
       getInitialData: () => data,
       onGenerateDragPreview({ nativeSetDragImage }) {
         setCustomNativeDragPreview({
@@ -47,7 +50,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, groupId }) => {
         setState({ type: "idle" });
       },
     });
-  }, [groupId, document.id]);
+  }, [groupId, isFirst, isLast, document.id]);
 
   return (
     <div className="relative">
