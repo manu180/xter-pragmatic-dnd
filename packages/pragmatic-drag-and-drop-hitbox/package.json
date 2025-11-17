@@ -1,0 +1,24 @@
+{
+  "name": "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "src"
+  ],
+  "license": "MIT",
+  "author": "manu180",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./list-item": "./src/list-item.ts"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,5 +1,5 @@
 import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
-import type { Availability, Instruction } from "./pragmatic-drag-and-drop-hitbox/list-item";
+import type { Availability, Instruction } from "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox/list-item";
 
 function getReorderDestinationIndex({
   startIndex,

@@ -15,7 +15,7 @@ import {
   attachInstruction,
   extractInstruction,
   type Instruction,
-} from "../util/pragmatic-drag-and-drop-hitbox/list-item";
+} from "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox/list-item";
 import { createPortal } from "react-dom";
 import { isDocumentElement, isGroupElement, type DraggableState, type GroupElement } from "../types/draggable";
 import { DragHandle } from "./draggable/drag-handle";

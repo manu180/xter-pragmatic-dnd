@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { extractInstruction, type Instruction } from "../util/pragmatic-drag-and-drop-hitbox/list-item";
+import { extractInstruction, type Instruction } from "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox/list-item";
 import { isDocumentElement, isGroupElement, type DocumentElement } from "../types/draggable";
 import { reorderWithInstruction } from "../util/draggable-util";
 import PriorityGroupCard from "./priority-group-card";
