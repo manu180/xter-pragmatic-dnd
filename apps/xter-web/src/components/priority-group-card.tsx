@@ -41,7 +41,7 @@ const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
     const dragHandle = dragHandleRef.current;
     const data: GroupElement = { type: "group", isFirst, isLast, id: group.id };
     function onChange({ source, self }: ElementDropTargetEventBasePayload) {
-      if (self.element === source.element) {
+      if (self.data?.id === source.data?.id) {
         return;
       }
       const instruction = extractInstruction(self.data);
@@ -49,8 +49,7 @@ const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
     }
     return combine(
       draggable({
-        element,
-        dragHandle,
+        element: dragHandle,
         getInitialData: () => data,
         onGenerateDragPreview({ nativeSetDragImage }) {
           setCustomNativeDragPreview({
