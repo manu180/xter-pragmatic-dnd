@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { extractInstruction, type Instruction } from "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox/list-item";
+import { extractInstruction } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
 import { isDocumentElement, isGroupElement, type DocumentElement } from "../types/draggable";
-import { reorderWithInstruction } from "../util/draggable-util";
+import { reorderWithInstruction, type ReorderInstruction } from "../util/draggable-util";
 import PriorityGroupCard from "./priority-group-card";
 import type { Group } from "../types/data";
 import { createGroup } from "../data/data";
@@ -13,24 +13,32 @@ export default function List({ items }: { items: Group[] }) {
   useEffect(() => {
     return monitorForElements({
       onDrop({ source, location }) {
-        const targetGroup = location.current.dropTargets[0]?.data;
-        if (!isGroupElement(targetGroup)) {
+        const targetElem = location.current.dropTargets.filter(
+          (t) => isGroupElement(t.data) || isDocumentElement(t.data)
+        )[0].data;
+        const sourceElem = source.data;
+        const instruction = extractInstruction(targetElem);
+        if (!instruction || instruction.operation === "combine") {
           return;
         }
-        const sourceElem = source.data;
-        const instruction = extractInstruction(targetGroup);
-        if (isDocumentElement(sourceElem)) {
+        // group over group (reorder)
+        if (isGroupElement(sourceElem) && isGroupElement(targetElem)) {
           setGroups(
-            insertGroupOrCombineDocuments(groups, sourceElem, targetGroup.id, instruction).filter(
-              (g) => g.documents.length > 0
-            )
+            reorderGroups(groups, sourceElem.id, targetElem.id, instruction).filter((g) => g.documents.length > 0)
           );
           return;
         }
-
-        if (isGroupElement(sourceElem)) {
+        // document over document (reorder)
+        if (isDocumentElement(sourceElem) && isDocumentElement(targetElem)) {
           setGroups(
-            reorderGroups(groups, sourceElem.id, targetGroup.id, instruction).filter((g) => g.documents.length > 0)
+            reorderDocuments(groups, sourceElem, targetElem, instruction).filter((g) => g.documents.length > 0)
+          );
+          return;
+        }
+        // document over group (move to new group)
+        if (isDocumentElement(sourceElem) && isGroupElement(targetElem)) {
+          setGroups(
+            moveDocumentToNewGroup(groups, sourceElem, targetElem.id, instruction).filter((g) => g.documents.length > 0)
           );
           return;
         }
@@ -39,8 +47,8 @@ export default function List({ items }: { items: Group[] }) {
   }, [groups]);
 
   return (
-    <div className="max-w-7xl mx-auto p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-4xl text-gray-800 text-center mb-8 font-bold">Agent Context Model</h1>
+    <div className="max-w-7xl mx-auto p-8 bg-white min-h-screen">
+      <h1 className="text-4xl text-gray-800 text-center mb-8 font-bold">Pragmatic Drag And Drop</h1>
       <div className="flex flex-col gap-2">
         {groups.map((p, idx) => (
           <PriorityGroupCard key={p.id} isFirst={idx === 0} isLast={idx === groups.length - 1} group={p} />
@@ -54,11 +62,11 @@ function reorderGroups(
   groups: Group[],
   sourceGroupId: Group["id"],
   targetGroupId: Group["id"],
-  instruction: Instruction | null
+  instruction: ReorderInstruction
 ): Group[] {
   const indexOfSource = groups.findIndex((p) => p.id === sourceGroupId);
   const indexOfTarget = groups.findIndex((p) => p.id === targetGroupId);
-  if (indexOfTarget < 0 || indexOfSource < 0) {
+  if (indexOfTarget === -1 || indexOfSource === -1) {
     return groups;
   }
   return reorderWithInstruction({
@@ -69,35 +77,62 @@ function reorderGroups(
   });
 }
 
-function insertGroupOrCombineDocuments(
+function reorderDocuments(
   groups: Group[],
   source: DocumentElement,
-  targetGroupId: Group["id"],
-  instruction: Instruction | null
+  target: DocumentElement,
+  instruction: ReorderInstruction
 ): Group[] {
-  if (!instruction) {
+  const sourceGroupIndex = groups.findIndex((p) => p.id === source.groupId);
+  const targetGroupIndex = groups.findIndex((p) => p.id === target.groupId);
+
+  const sourceDocumentIndex = groups[sourceGroupIndex].documents.findIndex((p) => p.id === source.id);
+  const targetDocumentIndex = groups[targetGroupIndex].documents.findIndex((p) => p.id === target.id);
+  if (sourceGroupIndex === -1 || targetGroupIndex === -1 || sourceDocumentIndex === -1 || targetDocumentIndex === -1) {
     return groups;
   }
-  switch (instruction.operation) {
-    case "combine":
-      return combineDocuments(groups, source, targetGroupId);
-    case "reorder-before":
-      return insertGroup(groups, source, targetGroupId, false);
-    case "reorder-after":
-      return insertGroup(groups, source, targetGroupId, true);
+
+  // source & target group is same
+  if (sourceGroupIndex === targetGroupIndex) {
+    const documents = reorderWithInstruction({
+      list: groups[sourceGroupIndex].documents,
+      startIndex: sourceDocumentIndex,
+      indexOfTarget: targetDocumentIndex,
+      instruction,
+    });
+    const result = Array.from(groups);
+    result[sourceGroupIndex] = { ...groups[sourceGroupIndex], documents };
+    return result;
   }
+
+  const sourceGroup = Object.assign({}, groups[sourceGroupIndex]);
+  const targetGroup = Object.assign({}, groups[targetGroupIndex]);
+
+  const [draggedDocument] = sourceGroup.documents.splice(sourceDocumentIndex, 1);
+  const isGoingAfter = instruction.operation === "reorder-after";
+  if (isGoingAfter && targetDocumentIndex >= targetGroup.documents.length - 1) {
+    targetGroup.documents.push(draggedDocument);
+  } else {
+    const documentIndex = isGoingAfter ? targetDocumentIndex + 1 : targetDocumentIndex;
+    targetGroup.documents.splice(documentIndex, 0, draggedDocument);
+  }
+  const newGroups = ([] as Group[]).concat(groups);
+  newGroups[sourceGroupIndex] = sourceGroup;
+  newGroups[targetGroupIndex] = targetGroup;
+  return newGroups;
 }
 
-function insertGroup(
+function moveDocumentToNewGroup(
   groups: Group[],
   source: DocumentElement,
   targetGroupId: Group["id"],
-  isGoingAfter: boolean
+  instruction: ReorderInstruction
 ): Group[] {
   const sourceGroupIndex = groups.findIndex((g) => g.id === source.groupId);
   const sourceDocumentIndex = groups[sourceGroupIndex].documents.findIndex((d) => d.id === source.id);
   const targetGroupIndex = groups.findIndex((g) => g.id === targetGroupId);
 
+  const isGoingAfter = instruction.operation === "reorder-after";
   const groupsBefore = isGoingAfter
     ? [...groups.slice(0, targetGroupIndex + 1)]
     : [...groups.slice(0, targetGroupIndex)];
@@ -111,29 +146,4 @@ function insertGroup(
   const [document] = sourceGroup.documents.splice(sourceDocumentIndex, 1);
   const newGroup = createGroup(document ? [document] : []);
   return ([] as Group[]).concat(groupsBefore, newGroup, ...groupsAfter);
-}
-
-function combineDocuments(groups: Group[], source: DocumentElement, targetGroupId: Group["id"]): Group[] {
-  const indexOfTarget = groups.findIndex((p) => p.id === targetGroupId);
-  const indexOfSourceGroup = groups.findIndex((g) => g.id === source.groupId);
-  if (indexOfTarget < 0 || indexOfSourceGroup < 0 || indexOfSourceGroup === indexOfTarget) {
-    return groups;
-  }
-  const sourceGroup = groups[indexOfSourceGroup];
-  const sourceDocuments = [...sourceGroup.documents];
-  const [document] = sourceDocuments.splice(
-    sourceDocuments.findIndex((d) => d.id === source.id),
-    1
-  );
-  const targetGroup = groups[indexOfTarget];
-  const newGroups = [...groups];
-  newGroups[indexOfSourceGroup] = {
-    ...sourceGroup,
-    documents: sourceDocuments,
-  };
-  newGroups[indexOfTarget] = {
-    ...targetGroup,
-    documents: [...targetGroup.documents, document],
-  };
-  return newGroups;
 }
