@@ -1,5 +1,6 @@
 import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
-import type { Availability, Instruction } from "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox/list-item";
+import type { Availability, Instruction } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
+export type ReorderInstruction = Exclude<Instruction, { operation: "combine" }>;
 
 function getReorderDestinationIndex({
   startIndex,
@@ -7,7 +8,7 @@ function getReorderDestinationIndex({
   indexOfTarget,
 }: {
   startIndex: number;
-  instruction: Instruction | null;
+  instruction: ReorderInstruction | null;
   indexOfTarget: number;
 }): number {
   // invalid index's
@@ -42,7 +43,7 @@ export function reorderWithInstruction<Value>({
   indexOfTarget,
 }: {
   list: Value[];
-  instruction: Instruction | null;
+  instruction: ReorderInstruction | null;
   startIndex: number;
   indexOfTarget: number;
 }): Value[] {

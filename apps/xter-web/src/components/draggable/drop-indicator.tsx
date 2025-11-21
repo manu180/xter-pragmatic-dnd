@@ -1,5 +1,5 @@
 import type { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/types";
-import { type Instruction } from "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox/list-item";
+import { type Instruction } from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
 import type { CSSProperties, HTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
 

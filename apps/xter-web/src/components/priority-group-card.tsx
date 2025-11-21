@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import type { Group } from "../types/data";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
+import { type DropTargetRecord } from "@atlaskit/pragmatic-drag-and-drop/types";
 import {
   type ElementDropTargetEventBasePayload,
   draggable,
@@ -12,10 +13,10 @@ import { DropIndicator } from "./draggable/drop-indicator";
 import DocumentCard from "./document-card";
 import { twMerge } from "tailwind-merge";
 import {
+  type Instruction,
   attachInstruction,
   extractInstruction,
-  type Instruction,
-} from "@xter-pragmatic-dnd/pragmatic-drag-and-drop-hitbox/list-item";
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/list-item";
 import { createPortal } from "react-dom";
 import { isDocumentElement, isGroupElement, type DraggableState, type GroupElement } from "../types/draggable";
 import { DragHandle } from "./draggable/drag-handle";
@@ -27,29 +28,61 @@ interface PriorityGroupProps {
   group: Group;
 }
 
+type DroppableState = {
+  isOver: boolean;
+  instruction: Instruction | null;
+};
+
 const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const [state, setState] = useState<DraggableState>({
-    type: "idle",
-  });
-  const [instruction, setInstruction] = useState<Instruction | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [draggableState, setDraggableState] = useState<DraggableState>({ type: "idle" });
+  const [droppableState, setDroppableState] = useState<DroppableState>({ isOver: false, instruction: null });
+  //const [instruction, setInstruction] = useState<Instruction | null>(null);
   //console.log(`Rendering PriorityGroupCard ${groupIndex} - ${state.type}`);
   useEffect(() => {
-    if (!ref.current || !dragHandleRef.current) return;
+    if (!ref.current || !dragHandleRef.current || !containerRef.current) return;
     const element = ref.current;
     const dragHandle = dragHandleRef.current;
+    const container = containerRef.current;
     const data: GroupElement = { type: "group", isFirst, isLast, id: group.id };
-    function onChange({ source, self }: ElementDropTargetEventBasePayload) {
-      if (self.data?.id === source.data?.id) {
+    function handleGroupDrop(dragData: GroupElement, self: DropTargetRecord, dropTargets: DropTargetRecord[]) {
+      if (isGroupElement(self.data) && self.data.id === dragData.id) {
+        setDroppableState({ isOver: false, instruction: null });
+        return;
+      }
+      const groupTargets = dropTargets.filter((x) => isGroupElement(x.data));
+      if (groupTargets[0].element !== element) {
+        setDroppableState({ isOver: false, instruction: null });
         return;
       }
       const instruction = extractInstruction(self.data);
-      setInstruction(instruction);
+      setDroppableState({ isOver: false, instruction });
+    }
+    function handleDocumentDrop(self: DropTargetRecord, dropTargets: DropTargetRecord[]) {
+      // hovering over document i.e. reorder documents
+      if (dropTargets[0].element !== element) {
+        setDroppableState({ isOver: true, instruction: null });
+        return;
+      }
+      // hovering over group only i.e. move into new group
+      const instruction = extractInstruction(self.data);
+      setDroppableState({ isOver: false, instruction });
+    }
+    function onChange({ source, self, location }: ElementDropTargetEventBasePayload) {
+      if (isGroupElement(source.data)) {
+        handleGroupDrop(source.data, self, location.current.dropTargets);
+        return;
+      }
+      if (isDocumentElement(source.data)) {
+        handleDocumentDrop(self, location.current.dropTargets);
+        return;
+      }
     }
     return combine(
       draggable({
-        element: dragHandle,
+        element: dragHandle, // enables text selection BUT beware it gets assigned to self.element
         getInitialData: () => data,
         onGenerateDragPreview({ nativeSetDragImage }) {
           setCustomNativeDragPreview({
@@ -59,46 +92,33 @@ const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
               y: "8px",
             }),
             render({ container }) {
-              setState({ type: "preview", container });
-              return () => setState({ type: "is-dragging" });
+              setDraggableState({ type: "preview", container });
+              return () => setDraggableState({ type: "is-dragging" });
             },
           });
         },
         onDragStart() {
-          setState({ type: "is-dragging" });
+          setDraggableState({ type: "is-dragging" });
         },
         onDrop() {
-          setState({ type: "idle" });
+          setDraggableState({ type: "idle" });
         },
       }),
       dropTargetForElements({
         element,
-        getIsSticky: () => true,
-        // canDrop({ source }) {
-        //   return isPriorityDragData(source.data) && source.data.id === data.id;
+        // canDrop({source}){
+        //   return true;
         // },
+        getIsSticky: () => true,
         getData({ input, source }) {
-          // handle group drop
-          if (isGroupElement(source.data)) {
-            return attachInstruction(data, {
-              element,
-              input,
-              operations: {
-                "reorder-before": source.data.isFirst && data.isFirst ? "not-available" : "available", // first item can't be moved before the first droppable
-                "reorder-after": source.data.isLast && data.isLast ? "not-available" : "available", // last item can't be moved after the last droppable
-                combine: "not-available",
-              },
-            });
-          }
-          // handle document drop
-          if (isDocumentElement(source.data)) {
+          if (isGroupElement(source.data) || isDocumentElement(source.data)) {
             return attachInstruction(data, {
               element,
               input,
               operations: {
                 "reorder-before": "available",
                 "reorder-after": "available",
-                combine: "available",
+                combine: "not-available",
               },
             });
           }
@@ -116,14 +136,19 @@ const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
         onDragEnter: onChange,
         onDrag: onChange,
         onDragLeave() {
-          setInstruction(null);
+          setDroppableState({ isOver: false, instruction: null });
         },
         onDrop() {
-          setInstruction(null);
+          setDroppableState({ isOver: false, instruction: null });
         },
+      }),
+      dropTargetForElements({
+        element: container,
+        // stickyness set to false is the reason to have this droppable!
+        getIsSticky: () => false,
       })
     );
-  }, [group.id, isFirst, isLast]);
+  }, [group.id, isFirst, isLast, droppableState.isOver]);
 
   return (
     <>
@@ -131,8 +156,9 @@ const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
         <div
           ref={ref}
           className={twMerge(
-            "flex flex-col bg-white rounded-lg p-2 shadow-sm gap-3",
-            state.type === "is-dragging" && "opacity-40"
+            "flex flex-col bg-gray-50 shadow rounded-lg p-2 gap-3",
+            draggableState.type === "is-dragging" && "opacity-40",
+            droppableState.isOver && "bg-blue-100"
           )}
         >
           <div className="flex items-center gap-3">
@@ -141,7 +167,7 @@ const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
           </div>
 
           {group.documents.length > 0 && (
-            <div className="grid gap-2">
+            <div ref={containerRef} className="grid gap-2">
               {group.documents.map((doc, index) => (
                 <DocumentCard
                   key={doc.id}
@@ -154,9 +180,10 @@ const PriorityGroupCard = ({ isFirst, isLast, group }: PriorityGroupProps) => {
             </div>
           )}
         </div>
-        {instruction && <DropIndicator instruction={instruction} lineGap="8px" />}
+        {droppableState.instruction && <DropIndicator instruction={droppableState.instruction} lineGap="8px" />}
       </div>
-      {state.type === "preview" && createPortal(<DragPreview value={`${group.id}`} />, state.container)}
+      {draggableState.type === "preview" &&
+        createPortal(<DragPreview value={`${group.id}`} />, draggableState.container)}
     </>
   );
 };
